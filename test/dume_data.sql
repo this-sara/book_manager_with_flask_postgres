@@ -1,10 +1,15 @@
 -- Insert dummy data into languages table
 INSERT INTO languages (name) VALUES
-('English'),
-('Spanish'),
-('French'),
-('German'),
-('Japanese');
+('eng'),
+('spa'),
+('fre'),
+('ger'),
+('jpn'),
+('chi'),
+('rus'),
+('ita'),
+('por'),
+('ara');
 
 -- Insert dummy data into users table
 INSERT INTO users (username, email, password_hash) VALUES
@@ -14,7 +19,7 @@ INSERT INTO users (username, email, password_hash) VALUES
 ('bob_wilson', 'bob@example.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewPlgzqiHyf6Pq7m'),
 ('carol_davis', 'carol@example.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewPlgzqiHyf6Pq7m');
 
--- Insert dummy data into authors table
+-- Insert dummy data into authors table (fixed: using 'name' field only)
 INSERT INTO authors (name) VALUES
 ('F. Scott Fitzgerald'),
 ('Harper Lee'),
@@ -40,7 +45,7 @@ INSERT INTO categories (name) VALUES
 ('Mystery'),
 ('Biography');
 
--- Insert dummy data into books table
+-- Insert dummy data into books table (added language_id field)
 INSERT INTO books (title, publication_year, open_library_id, language_id) VALUES
 ('The Great Gatsby', 1925, 'OL1168083M', 1),
 ('To Kill a Mockingbird', 1960, 'OL7353617M', 1),
@@ -51,7 +56,22 @@ INSERT INTO books (title, publication_year, open_library_id, language_id) VALUES
 ('The Sun Also Rises', 1926, 'OL1168089M', 1),
 ('Beloved', 1987, 'OL1168090M', 1),
 ('One Hundred Years of Solitude', 1967, 'OL1168091M', 2),
-('Norwegian Wood', 1987, 'OL1168092M', 5);
+('Norwegian Wood', 1987, 'OL1168092M', 1);
+
+-- insert relationship between books and languages
+INSERT INTO book_languages (book_id, language_id) VALUES
+(1, 1),  -- The Great Gatsby - English
+(2, 1),  -- To Kill a Mockingbird - English
+(3, 1),  -- 1984 - English
+(4, 1),  -- Pride and Prejudice - English
+(5, 1),  -- The Adventures of Tom Sawyer - English
+(6, 1),  -- Mrs. Dalloway - English
+(7, 1),  -- The Sun Also Rises - English
+(8, 1),  -- Beloved - English
+(9, 1),  -- One Hundred Years of Solitude - English
+(9, 2),  -- One Hundred Years of Solitude - Spanish (original)
+(10, 1), -- Norwegian Wood - English
+(10, 5); -- Norwegian Wood - Japanese (original)
 
 -- Insert dummy data into book_authors junction table
 INSERT INTO book_authors (book_id, author_id) VALUES
@@ -115,4 +135,4 @@ INSERT INTO collection_books (collection_id, book_id) VALUES
 (6, 3),  -- Must Read Classics - 1984
 (7, 6),  -- Literary Fiction Collection - Mrs. Dalloway
 (7, 7),  -- Literary Fiction Collection - The Sun Also Rises
-(7, 8);  -- Literary Fiction Collection - Beloved 
+(7, 8);  -- Literary Fiction Collection - Beloved
