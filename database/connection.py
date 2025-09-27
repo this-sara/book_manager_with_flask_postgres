@@ -1,4 +1,5 @@
 import psycopg2
+from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
 from config import Config
 
@@ -15,7 +16,7 @@ def get_db():
             user=Config.DATABASE_USER,
             password=Config.DATABASE_PASSWORD
         )
-        
+        conn.cursor_factory = RealDictCursor
         yield conn
         conn.commit()
     except Exception as e:
