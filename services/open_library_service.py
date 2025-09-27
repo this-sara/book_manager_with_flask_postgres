@@ -1,25 +1,28 @@
 import requests
-import json
 from typing import Optional, Dict, Any
 
 class OpenLibraryService:
     BASE_URL = "https://openlibrary.org"
     
     @staticmethod
-    def search_book_by_title(title: str) -> Optional[Dict[Any, Any]]:
+    def search_book_by_title(title: str, limit: int = 1) -> Optional[Dict[Any, Any]]:
         """Search for a book by title using Open Library API."""
         try:
             url = f"{OpenLibraryService.BASE_URL}/search.json"
             params = {
                 'title': title,
-                'limit': 1
+                'limit': limit 
             }
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             
             data = response.json()
             if data.get('docs') and len(data['docs']) > 0:
-                return OpenLibraryService._format_book_data(data['docs'][0])
+                if limit == 1:
+                    return OpenLibraryService._format_book_data(data['docs'][0])
+                else:
+                    # Return multiple books
+                    return [OpenLibraryService._format_book_data(book) for book in data['docs']]
             return None
             
         except requests.RequestException as e:

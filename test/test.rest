@@ -4,35 +4,39 @@
 GET {{url}}/books
 
 ### get books by id
-GET {{url}}/books/1
+GET {{url}}/books/13
 
 ### get book by title
-GET {{url}}/books/title/The Great Gatsby
+GET {{url}}/books/title/great gatsby
 
 ### post a new book
 POST {{url}}/books
 Content-Type: application/json
 
 {
-    "title": "skyward",
-    "author": "Brandon Sanderson",
-    "publication_year": 2018,
-    "language": "English",
-    "open_library_id": "OL12342678M"
+    "title": "A Song of Ice and Fire",
+    "author": "George R. R. Martin",
+    "categories": ["Fantasy", "Adventure"],
+    "languages": ["eng", "fre"],
+    "publication_year": 1996,
+    "cover_id": 123456,
+    "open_library_id": "OL12342278M"
 }
 
 ### delete a book by id
-DELETE {{url}}/books/13
+DELETE {{url}}/books/12
 
 
 ### update a book by id
-PUT {{url}}/books/11
+PUT {{url}}/books/13
 Content-Type: application/json
 
 {
-    "title": "The Lord of the Flies",
-    "author": "William Goolding",
-    "publication_year": 1954,
-    "language": "English",
-    "open_library_id": "OL12345678M"
+   "title": "A Song of Ice and Fire",
+    "author": "George R. R. Martin",
+    "categories": ["Fantasy", "Adventure", "Drama"],
+    "languages": ["eng", "fre", "deu" ,"bob", "jpn"],
+    "publication_year": 1996,
+    "cover_id": 123456,
+    "open_library_id": "OL12342278M"
 }

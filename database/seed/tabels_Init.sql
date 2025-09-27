@@ -32,9 +32,9 @@ CREATE TABLE collections (
 -- Table for unique authors
 CREATE TABLE authors (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE
+    name VARCHAR(255) NOT NULL,
+    UNIQUE (name)
 );
-
 -- Table for unique categories/genres
 CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
@@ -46,14 +46,25 @@ CREATE TABLE books (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     publication_year INTEGER,
-    cover_id BIGINT, 
+    cover_id VARCHAR(50), 
     open_library_id VARCHAR(50) UNIQUE,
     language_id INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- junction table for book languages
+CREATE TABLE IF NOT EXISTS book_languages (
+    book_id INTEGER NOT NULL,
+    language_id INTEGER NOT NULL,
+    PRIMARY KEY (book_id, language_id),
+    CONSTRAINT fk_book
+        FOREIGN KEY(book_id)
+        REFERENCES books(id)
+        ON DELETE CASCADE,
     CONSTRAINT fk_language
         FOREIGN KEY(language_id)
         REFERENCES languages(id)
-        ON DELETE SET NULL 
+        ON DELETE CASCADE
 );
 
 -- Junction table for the many-to-many relationship between books and authors
