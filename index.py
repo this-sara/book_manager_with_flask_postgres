@@ -1,12 +1,5 @@
-from config import Config
-from database import get_db
-from flask import Flask, jsonify
-from routes.books_api import books_api
-from routes.categories_api import categories_api
-from routes.languages_api import languages_api
-from routes.collections_api import collections_api
-from routes.users_api import users_api
-
+from flask import Flask
+from routes import books_api, categories_api, authors_api, users_api, collections_api, languages_api,
 
 
 app = Flask(__name__)
@@ -17,6 +10,7 @@ app.register_blueprint(collections_api)
 app.register_blueprint(users_api)
 
 
+app.register_blueprint(authors_api)
 
 @app.route('/', methods=['GET'])
 def home():
