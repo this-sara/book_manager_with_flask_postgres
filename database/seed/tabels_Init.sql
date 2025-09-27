@@ -47,7 +47,7 @@ CREATE TABLE books (
     title VARCHAR(255) NOT NULL,
     publication_year INTEGER,
     cover_id BIGINT, 
-    open_library_id VARCHAR(50) NOT NULL UNIQUE,
+    open_library_id VARCHAR(50) UNIQUE,
     language_id INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_language
