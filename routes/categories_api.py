@@ -32,6 +32,21 @@ def get_category(category_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# @categories_api.route('/name/<string:category_name>', methods=['GET'])
+# def get_category_by_name(category_name):
+#     """Fetch a single category by its name."""
+#     try:
+#         with get_db() as conn:
+#             with conn.cursor() as cursor:
+#                 cursor.execute("SELECT * FROM categories WHERE LOWER(name) = LOWER(%s)", (category_name,))
+#                 category = cursor.fetchone()
+#                 if category:
+#                     return jsonify(category)
+#                 else:
+#                     return jsonify({"error": "Category not found"}), 404
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
 @categories_api.route('/', methods=['POST'])
 def add_category():
     """Add a new category to the database."""
@@ -83,3 +98,22 @@ def delete_category(category_id):
         return jsonify({"error": str(e)}), 500
     
 
+@categories_api.route('/<int:category_id>/books', methods=['GET'])
+def get_books_by_category(category_id):
+    """Fetch all books for a specific category."""
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT b.* 
+                    FROM books b
+                    JOIN book_categories bc ON b.id = bc.book_id
+                    WHERE bc.category_id = %s
+                """, (category_id,))
+                books = cursor.fetchall()
+                if books:
+                    return jsonify(books)
+                else:
+                    return jsonify({"error": "No books found for this category"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
