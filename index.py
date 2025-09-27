@@ -1,5 +1,5 @@
 from flask import Flask
-from routes import books_api, categories_api, authors_api, users_api, collections_api, languages_api,
+from routes import books_api, categories_api, authors_api, users_api, collections_api, languages_api
 
 
 app = Flask(__name__)
