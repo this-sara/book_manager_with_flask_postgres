@@ -6,13 +6,64 @@ languages_api = Blueprint('languages_api', __name__, url_prefix='/api/languages'
 
 @languages_api.route('/', methods=['GET'])
 def get_languages():
-    """Fetch all languages from the database."""
+    """Fetch languages from the database with pagination."""
     try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 20, type=int), 100)
+        search = request.args.get('search', '').strip()
+        
+        # Calculate offset
+        offset = (page - 1) * per_page
+        
         with get_db() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM languages")
+                # Build WHERE clause for search
+                where_clause = ""
+                search_params = []
+                if search:
+                    where_clause = "WHERE languages.name ILIKE %s OR languages.code ILIKE %s"
+                    search_term = f"%{search}%"
+                    search_params = [search_term, search_term]
+                
+                # Get total count
+                count_query = f"SELECT COUNT(*) FROM languages {where_clause}"
+                cursor.execute(count_query, search_params)
+                total_count = cursor.fetchone()['count']
+                
+                # Get languages with pagination and book count
+                languages_query = f"""
+                    SELECT 
+                        languages.id, 
+                        languages.name,
+                        languages.code,
+                        COUNT(books.id) as book_count
+                    FROM languages
+                    LEFT JOIN book_languages ON languages.id = book_languages.language_id
+                    LEFT JOIN books ON book_languages.book_id = books.id
+                    {where_clause}
+                    GROUP BY languages.id, languages.name, languages.code
+                    ORDER BY languages.name
+                    LIMIT %s OFFSET %s
+                """
+                
+                cursor.execute(languages_query, search_params + [per_page, offset])
                 languages = cursor.fetchall()
-                return jsonify(languages)
+                
+                # Calculate pagination info
+                total_pages = (total_count + per_page - 1) // per_page
+                
+                return jsonify({
+                    'data': languages,
+                    'pagination': {
+                        'page': page,
+                        'per_page': per_page,
+                        'total': total_count,
+                        'pages': total_pages,
+                        'has_prev': page > 1,
+                        'has_next': page < total_pages
+                    }
+                })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

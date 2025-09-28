@@ -7,13 +7,63 @@ categories_api = Blueprint('categories_api', __name__, url_prefix='/api/categori
 
 @categories_api.route('/', methods=['GET'])
 def get_categories():
-    """Fetch all categories from the database."""
+    """Fetch categories from the database with pagination."""
     try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 20, type=int), 100)
+        search = request.args.get('search', '').strip()
+        
+        # Calculate offset
+        offset = (page - 1) * per_page
+        
         with get_db() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM categories")
+                # Build WHERE clause for search
+                where_clause = ""
+                search_params = []
+                if search:
+                    where_clause = "WHERE categories.name ILIKE %s"
+                    search_params = [f"%{search}%"]
+                
+                # Get total count
+                count_query = f"SELECT COUNT(*) FROM categories {where_clause}"
+                cursor.execute(count_query, search_params)
+                total_count = cursor.fetchone()['count']
+                
+                # Get categories with pagination and book count
+                categories_query = f"""
+                    SELECT 
+                        categories.id, 
+                        categories.name,
+                        categories.description,
+                        COUNT(books.id) as book_count
+                    FROM categories
+                    LEFT JOIN book_categories ON categories.id = book_categories.category_id
+                    LEFT JOIN books ON book_categories.book_id = books.id
+                    {where_clause}
+                    GROUP BY categories.id, categories.name, categories.description
+                    ORDER BY categories.name
+                    LIMIT %s OFFSET %s
+                """
+                
+                cursor.execute(categories_query, search_params + [per_page, offset])
                 categories = cursor.fetchall()
-                return jsonify(categories)
+                
+                # Calculate pagination info
+                total_pages = (total_count + per_page - 1) // per_page
+                
+                return jsonify({
+                    'data': categories,
+                    'pagination': {
+                        'page': page,
+                        'per_page': per_page,
+                        'total': total_count,
+                        'pages': total_pages,
+                        'has_prev': page > 1,
+                        'has_next': page < total_pages
+                    }
+                })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

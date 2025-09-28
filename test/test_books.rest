@@ -1,7 +1,7 @@
 @url=http://localhost:5000/api
 
 ### Test Case: Get all books
-GET {{url}}/collections/1/books
+GET {{url}}/books
 
 ### get books by id
 GET {{url}}/books/13
@@ -14,13 +14,13 @@ POST {{url}}/books
 Content-Type: application/json
 
 {
-    "title": "A Song of Ice and Fire",
+    "title": "A Song of Ids",
     "author": "George R. R. Martin",
     "categories": ["Fantasy", "Adventure"],
     "languages": ["eng", "fre"],
     "publication_year": 1996,
     "cover_id": 123456,
-    "open_library_id": "OL12342278M"
+    "open_library_id": "OL12322278M"
 }
 
 ### delete a book by id
@@ -39,4 +39,13 @@ Content-Type: application/json
     "publication_year": 1996,
     "cover_id": 123456,
     "open_library_id": "OL12342278M"
+}
+
+
+### update user 3 to admin
+PUT {{url}}/users/3
+Content-Type: application/json
+
+{
+    "role": "admin"
 }

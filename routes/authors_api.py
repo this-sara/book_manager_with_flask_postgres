@@ -31,6 +31,37 @@ def get_authors():
     except Exception as e:
         return handle_database_error(e, "fetching authors")
 
+@authors_api.route('/', methods=['POST'])
+def create_author():
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    image = data.get('image')
+    
+    # Handle image field properly - it can be None, empty string, or a valid URL
+    if image is not None:
+        image = image.strip()
+        if not image:  # Empty string after stripping
+            image = None
+    
+    if not name:
+        return handle_validation_error('name is required')
+    
+    name = normalize_strings(name)
+    
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id FROM authors WHERE LOWER(name) = LOWER(%s);", (name,))
+                existing_author = cursor.fetchone()
+                if existing_author:
+                    return handle_conflict_error('Author with this name already exists', existing_author['id'])
+                
+                cursor.execute("INSERT INTO authors (name, image_url) VALUES (%s, %s) RETURNING id;", (name, image))
+                new_id = cursor.fetchone()['id']
+                return jsonify({'id': new_id, 'name': name, 'image_url': image, 'message': 'Author added successfully'}), 201
+    except Exception as e:
+        return handle_database_error(e, "adding new author")
+
 @authors_api.route('/<int:author_id>', methods=['GET'])
 def get_author(author_id):
     try:

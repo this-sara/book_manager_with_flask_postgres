@@ -141,7 +141,12 @@ def add_book():
             return jsonify({"error": "Invalid or missing JSON body"}), 400
 
         title = normalize_strings(data.get('title'))
-        author = normalize_strings(data.get('author'))
+        
+        # Handle both singular and plural keys for authors
+        authors = data.get('authors', data.get('author', []))
+        if isinstance(authors, str):
+            authors = [authors]
+        authors = [normalize_strings(author) for author in authors if author]
         
         # Handle both singular and plural keys for languages
         languages = data.get('languages', data.get('language', []))
@@ -209,20 +214,21 @@ def add_book():
                         # Link book to category via junction table
                         cursor.execute("INSERT INTO book_categories (book_id, category_id) VALUES (%s, %s)", (new_book_id, category_id))
                 
-                # Handle author if provided
-                if author:
-                    # Check if author exists
-                    cursor.execute("SELECT id FROM authors WHERE LOWER(name) = %s", (author.lower(),))
-                    author_result = cursor.fetchone()
-                    if author_result:
-                        author_id = author_result["id"]
-                    else:
-                        # Insert new author
-                        cursor.execute("INSERT INTO authors (name) VALUES (%s) RETURNING id", (author,))
-                        author_id = cursor.fetchone()["id"]
+                # Handle authors - insert each author as a separate record
+                for author in authors:
+                    if author:  # Only process non-empty authors
+                        # Check if author exists
+                        cursor.execute("SELECT id FROM authors WHERE LOWER(name) = %s", (author.lower(),))
+                        author_result = cursor.fetchone()
+                        if author_result:
+                            author_id = author_result["id"]
+                        else:
+                            # Insert new author
+                            cursor.execute("INSERT INTO authors (name) VALUES (%s) RETURNING id", (author,))
+                            author_id = cursor.fetchone()["id"]
 
-                    # Link book to author via junction table
-                    cursor.execute("INSERT INTO book_authors (book_id, author_id) VALUES (%s, %s)", (new_book_id, author_id))
+                        # Link book to author via junction table
+                        cursor.execute("INSERT INTO book_authors (book_id, author_id) VALUES (%s, %s)", (new_book_id, author_id))
 
                 return jsonify({"message": "Book added successfully", "book_id": new_book_id}), 201
 
@@ -250,7 +256,12 @@ def update_book(book_id):
     try:
         data = request.get_json()
         title = normalize_strings(data.get('title')) if data.get('title') else None
-        author = normalize_strings(data.get('author')) if data.get('author') else None
+        
+        # Handle both singular author and plural authors
+        authors = data.get('authors', [])
+        if not authors and data.get('author'):
+            authors = [data.get('author')]
+        authors = [normalize_strings(auth) for auth in authors if auth]
         
         # Handle both singular and plural keys for languages
         languages = data.get('languages', data.get('language', []))
@@ -278,7 +289,8 @@ def update_book(book_id):
                 update_fields = []
                 update_values = []
                 if title:
-                    cursor.execute("SELECT * FROM books WHERE LOWER(title) = %s AND id != %s", (title.lower(), book_id))
+                    # Check if another book (not this one) has the same title
+                    cursor.execute("SELECT * FROM books WHERE LOWER(REGEXP_REPLACE(title, '\s+', ' ', 'g')) = %s AND id != %s", (normalize_strings(title), book_id))
                     title_conflict = cursor.fetchone()
                     if title_conflict:
                         return jsonify({"error": "Another book with this title already exists"}), 409
@@ -322,17 +334,19 @@ def update_book(book_id):
                                 category_id = cursor.fetchone()["id"]
                             cursor.execute("INSERT INTO book_categories (book_id, category_id) VALUES (%s, %s)", (book_id, category_id))
                 
-                # Handle author update
-                if author:
+                # Handle authors update - remove old and add new
+                if authors:
                     cursor.execute("DELETE FROM book_authors WHERE book_id = %s", (book_id,))
-                    cursor.execute("SELECT id FROM authors WHERE LOWER(name) = %s", (author.lower(),))
-                    author_result = cursor.fetchone()
-                    if author_result:
-                        author_id = author_result["id"]
-                    else:
-                        cursor.execute("INSERT INTO authors (name) VALUES (%s) RETURNING id", (author,))
-                        author_id = cursor.fetchone()["id"]
-                    cursor.execute("INSERT INTO book_authors (book_id, author_id) VALUES (%s, %s)", (book_id, author_id))
+                    for author in authors:
+                        if author:
+                            cursor.execute("SELECT id FROM authors WHERE LOWER(name) = %s", (author.lower(),))
+                            author_result = cursor.fetchone()
+                            if author_result:
+                                author_id = author_result["id"]
+                            else:
+                                cursor.execute("INSERT INTO authors (name) VALUES (%s) RETURNING id", (author,))
+                                author_id = cursor.fetchone()["id"]
+                            cursor.execute("INSERT INTO book_authors (book_id, author_id) VALUES (%s, %s)", (book_id, author_id))
                 
                 if update_fields:
                     query = "UPDATE books SET " + ", ".join(update_fields) + " WHERE id = %s"
@@ -363,8 +377,23 @@ def search_book_from_open_library(title):
 def _add_book_to_db(book_data):
     """Helper function to add book data to database."""
     title = normalize_strings(book_data.get('title'))
-    author = normalize_strings(book_data.get('author'))
-    language = normalize_strings(book_data.get('language'))
+    
+    # Handle authors array (fallback to single author for backward compatibility)
+    authors = book_data.get('authors', [])
+    if not authors and book_data.get('author'):
+        authors = [book_data.get('author')]
+    authors = [normalize_strings(author) for author in authors if author]
+    
+    # Handle languages array (fallback to single language for backward compatibility)
+    languages = book_data.get('languages', [])
+    if not languages and book_data.get('language'):
+        languages = [book_data.get('language')]
+    languages = [normalize_strings(lang) for lang in languages if lang]
+    
+    # Handle categories array
+    categories = book_data.get('categories', [])
+    categories = [normalize_strings(cat) for cat in categories if cat]
+    
     open_library_id = normalize_strings(book_data.get('open_library_id'))
     publication_year = book_data.get('publication_year')
     cover_id = book_data.get('cover_id')
@@ -375,43 +404,56 @@ def _add_book_to_db(book_data):
     with get_db() as conn:
         with conn.cursor() as cursor:
             # Check if book exists
-            cursor.execute("SELECT * FROM books WHERE LOWER(title) = %s", (title,))
+            cursor.execute("SELECT * FROM books WHERE LOWER(REGEXP_REPLACE(title, '\s+', ' ', 'g')) = %s", (normalize_strings(title),))
             existing_book = cursor.fetchone()
             if existing_book:
                 raise ValueError("Book already exists")
             
-            # Insert book WITHOUT language_id
+            # Insert book
             cursor.execute(
                 "INSERT INTO books (title, publication_year, open_library_id, cover_id) VALUES (%s, %s, %s, %s) RETURNING id",
                 (title, publication_year, open_library_id, cover_id)
             )
             new_book_id = cursor.fetchone()["id"]
             
-            # Handle language if provided
-            if language:
-                # Get or create language
-                cursor.execute("SELECT id FROM languages WHERE LOWER(name) = %s", (language,))
-                language_result = cursor.fetchone()
-                if language_result:
-                    language_id = language_result["id"]
-                else:
-                    cursor.execute("INSERT INTO languages (name) VALUES (%s) RETURNING id", (language,))
-                    language_id = cursor.fetchone()["id"]
-                
-                # Link book to language
-                cursor.execute("INSERT INTO book_languages (book_id, language_id) VALUES (%s, %s)", (new_book_id, language_id))
+            # Handle languages array
+            for language in languages:
+                if language:
+                    cursor.execute("SELECT id FROM languages WHERE LOWER(name) = %s", (language.lower(),))
+                    language_result = cursor.fetchone()
+                    if language_result:
+                        language_id = language_result["id"]
+                    else:
+                        cursor.execute("INSERT INTO languages (name) VALUES (%s) RETURNING id", (language,))
+                        language_id = cursor.fetchone()["id"]
+                    
+                    cursor.execute("INSERT INTO book_languages (book_id, language_id) VALUES (%s, %s)", (new_book_id, language_id))
             
-            # Handle author if provided
-            if author:
-                cursor.execute("SELECT id FROM authors WHERE LOWER(name) = %s", (author,))
-                author_result = cursor.fetchone()
-                if author_result:
-                    author_id = author_result["id"]
-                else:
-                    cursor.execute("INSERT INTO authors (name) VALUES (%s) RETURNING id", (author,))
-                    author_id = cursor.fetchone()["id"]
-                
-                cursor.execute("INSERT INTO book_authors (book_id, author_id) VALUES (%s, %s)", (new_book_id, author_id))
+            # Handle authors array
+            for author in authors:
+                if author:
+                    cursor.execute("SELECT id FROM authors WHERE LOWER(name) = %s", (author.lower(),))
+                    author_result = cursor.fetchone()
+                    if author_result:
+                        author_id = author_result["id"]
+                    else:
+                        cursor.execute("INSERT INTO authors (name) VALUES (%s) RETURNING id", (author,))
+                        author_id = cursor.fetchone()["id"]
+                    
+                    cursor.execute("INSERT INTO book_authors (book_id, author_id) VALUES (%s, %s)", (new_book_id, author_id))
+            
+            # Handle categories array
+            for category in categories:
+                if category:
+                    cursor.execute("SELECT id FROM categories WHERE LOWER(name) = %s", (category.lower(),))
+                    category_result = cursor.fetchone()
+                    if category_result:
+                        category_id = category_result["id"]
+                    else:
+                        cursor.execute("INSERT INTO categories (name) VALUES (%s) RETURNING id", (category,))
+                        category_id = cursor.fetchone()["id"]
+                    
+                    cursor.execute("INSERT INTO book_categories (book_id, category_id) VALUES (%s, %s)", (new_book_id, category_id))
 
             return new_book_id
 
